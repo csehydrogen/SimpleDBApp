@@ -1,0 +1,8 @@
+# os x
+.DS_Store
+
+# eclipse
+.classpath
+.project
+bin
+lib
