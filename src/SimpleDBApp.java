@@ -200,11 +200,14 @@ public class SimpleDBApp {
     try {
       conn.setAutoCommit(false);
       stmt40.setInt(1, uid);
-      stmt40.executeUpdate();
-      stmt41.setInt(1, uid);
-      stmt41.executeUpdate();
+      if (stmt40.executeUpdate() == 0) {
+        System.out.println(String.format("University %d doesn't exist.", uid));
+      } else {
+        stmt41.setInt(1, uid);
+        stmt41.executeUpdate();
+        System.out.println("A university is successfully deleted.");
+      }
       conn.commit();
-      System.out.println("A university is successfully deleted.");
     } catch (SQLException e) {
       e.printStackTrace();
       try {
@@ -257,14 +260,17 @@ public class SimpleDBApp {
     int sid = Integer.parseInt(in.nextLine());
     try {
       conn.setAutoCommit(false);
-      stmt62.setInt(1, sid);
-      stmt62.executeUpdate();
       stmt60.setInt(1, sid);
-      stmt60.executeUpdate();
-      stmt61.setInt(1, sid);
-      stmt61.executeUpdate();
+      if (stmt60.executeUpdate() == 0) {
+        System.out.println(String.format("Student %d doesn't exist.", sid));
+      } else {
+        stmt62.setInt(1, sid);
+        stmt62.executeUpdate();
+        stmt61.setInt(1, sid);
+        stmt61.executeUpdate();
+        System.out.println("A student is successfully deleted.");
+      }
       conn.commit();
-      System.out.println("A student is successfully deleted.");
     } catch (SQLException e) {
       e.printStackTrace();
       try {
