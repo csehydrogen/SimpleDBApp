@@ -6,9 +6,9 @@ import java.sql.SQLException;
 import java.util.Scanner;
 
 public class SimpleDBApp {
-  private static final String DB_ID= "DB-2013-11395";
-  private static final String DB_PASSWORD= "DB-2013-11395";
-  private static final String DB_URL= "jdbc:mariadb://147.46.15.238:3306/DB-2013-11395";
+  private static final String DB_ID = "DB-2013-11395";
+  private static final String DB_PASSWORD = "DB-2013-11395";
+  private static final String DB_URL = "jdbc:mariadb://147.46.15.238:3306/DB-2013-11395";
 
   private static final String LINE_MENU = "============================================================";
   private static final String LINE_UNIV = "________________________________________________________";
@@ -22,34 +22,47 @@ public class SimpleDBApp {
   private static PreparedStatement stmt20;
   private static PreparedStatement stmt30, stmt31;
   private static PreparedStatement stmt50, stmt51;
+  private static PreparedStatement stmt70, stmt71, stmt72, stmt73, stmt74;
 
   public static void main(String[] args) {
     try {
       init();
       while (true) {
         switch (getAction()) {
-          case 1: printUniv(); break;
-          case 2: printStud(); break;
-          case 3: insertUniv(); break;
+          case 1:
+            printUniv();
+            break;
+          case 2:
+            printStud();
+            break;
+          case 3:
+            insertUniv();
+            break;
           case 4:
-          case 5: insertStud(); break;
+          case 5:
+            insertStud();
+            break;
           case 6:
           case 7:
+            apply();
+            break;
           case 8:
           case 9:
           case 10:
           case 11:
-          case 12: exit(); break;
+          case 12:
+            exit();
+            break;
           default:
             System.out.println("Invalid action.");
         }
       }
-    } catch (Exception e) {
+    } catch (SQLException e) {
       e.printStackTrace();
     }
   }
 
-  private static void init() throws SQLException{
+  private static void init() throws SQLException {
     conn = DriverManager.getConnection(DB_URL, DB_ID, DB_PASSWORD);
     in = new Scanner(System.in);
     stmt10 = conn.prepareStatement("SELECT * FROM university");
@@ -58,6 +71,11 @@ public class SimpleDBApp {
     stmt31 = conn.prepareStatement("INSERT INTO university VALUES (?, ?, ?, ?, ?, 0)");
     stmt50 = conn.prepareStatement("SELECT max(sid) + 1 FROM student");
     stmt51 = conn.prepareStatement("INSERT INTO student VALUES (?, ?, ?, ?)");
+    stmt70 = conn.prepareStatement("SELECT ugroup FROM university WHERE uid = ?");
+    stmt71 = conn.prepareStatement("SELECT count(*) FROM student WHERE sid = ?");
+    stmt72 = conn.prepareStatement("SELECT ugroup FROM university WHERE uid in (SELECT uid FROM apply WHERE sid = ?)");
+    stmt73 = conn.prepareStatement("INSERT INTO apply VALUES (?, ?)");
+    stmt74 = conn.prepareStatement("UPDATE university SET applied = applied + 1 WHERE uid = ?");
   }
 
   private static int getAction() {
@@ -85,7 +103,8 @@ public class SimpleDBApp {
     System.out.println(LINE_UNIV);
     ResultSet rs = stmt10.executeQuery();
     while (rs.next())
-      System.out.println(String.format(FMT_UNIV, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6)));
+      System.out.println(String.format(FMT_UNIV, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
+          String.format("%.2f", rs.getFloat(5)), rs.getString(6)));
     System.out.println(LINE_UNIV);
   }
 
@@ -99,7 +118,7 @@ public class SimpleDBApp {
     System.out.println(LINE_STUD);
   }
 
-  private static void insertUniv() throws SQLException{
+  private static void insertUniv() throws SQLException {
     System.out.print("University name: ");
     String name = in.nextLine();
     if (name.length() > 128) {
@@ -130,7 +149,8 @@ public class SimpleDBApp {
     ResultSet rs = stmt30.executeQuery();
     rs.next();
     int uid = rs.getInt(1);
-    if (uid == 0) uid = 1;
+    if (uid == 0)
+      uid = 1;
 
     stmt31.setInt(1, uid);
     stmt31.setString(2, name);
@@ -165,7 +185,8 @@ public class SimpleDBApp {
     ResultSet rs = stmt50.executeQuery();
     rs.next();
     int sid = rs.getInt(1);
-    if (sid == 0) sid = 1;
+    if (sid == 0)
+      sid = 1;
 
     stmt51.setInt(1, sid);
     stmt51.setString(2, name);
@@ -173,6 +194,64 @@ public class SimpleDBApp {
     stmt51.setInt(4, school_score);
     stmt51.executeUpdate();
     System.out.println("A student is successfully inserted.");
+  }
+
+  private static void apply() throws SQLException {
+    ResultSet rs;
+
+    System.out.print("Student ID: ");
+    int sid = Integer.parseInt(in.nextLine());
+    stmt71.setInt(1, sid);
+    rs = stmt71.executeQuery();
+    rs.next();
+    if (rs.getInt(1) == 0) {
+      System.out.println(String.format("Student %d doesn't exist.", sid));
+      return;
+    }
+
+    System.out.print("University ID: ");
+    int uid = Integer.parseInt(in.nextLine());
+    stmt70.setInt(1, uid);
+    rs = stmt70.executeQuery();
+    if (!rs.next()) {
+      System.out.println(String.format("University %d doesn't exist.", uid));
+      return;
+    }
+    String ugroup = rs.getString(1);
+
+    stmt72.setInt(1, sid);
+    rs = stmt72.executeQuery();
+    boolean flag = false;
+    while (rs.next()) {
+      if (rs.getString(1).equals(ugroup)) {
+        flag = true;
+        break;
+      }
+    }
+    if (flag) {
+      System.out.println("A student can apply up to one university per group.");
+      return;
+    }
+
+    try {
+      conn.setAutoCommit(false);
+      stmt73.setInt(1, uid);
+      stmt73.setInt(2, sid);
+      stmt73.executeUpdate();
+      stmt74.setInt(1, uid);
+      stmt74.executeUpdate();
+      conn.commit();
+      System.out.println("Successfully made an application.");
+    } catch (SQLException e) {
+      e.printStackTrace();
+      try {
+        conn.rollback();
+      } catch (SQLException ex) {
+        ex.printStackTrace();
+      }
+    } finally {
+      conn.setAutoCommit(true);
+    }
   }
 
   private static void exit() throws SQLException {
