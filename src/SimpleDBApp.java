@@ -21,7 +21,9 @@ public class SimpleDBApp {
   private static PreparedStatement stmt10;
   private static PreparedStatement stmt20;
   private static PreparedStatement stmt30, stmt31;
+  private static PreparedStatement stmt40, stmt41;
   private static PreparedStatement stmt50, stmt51;
+  private static PreparedStatement stmt60, stmt61, stmt62;
   private static PreparedStatement stmt70, stmt71, stmt72, stmt73, stmt74;
 
   public static void main(String[] args) {
@@ -39,10 +41,14 @@ public class SimpleDBApp {
             insertUniv();
             break;
           case 4:
+            removeUniv();
+            break;
           case 5:
             insertStud();
             break;
           case 6:
+            removeStud();
+            break;
           case 7:
             apply();
             break;
@@ -65,12 +71,24 @@ public class SimpleDBApp {
   private static void init() throws SQLException {
     conn = DriverManager.getConnection(DB_URL, DB_ID, DB_PASSWORD);
     in = new Scanner(System.in);
+
     stmt10 = conn.prepareStatement("SELECT * FROM university");
+
     stmt20 = conn.prepareStatement("SELECT * FROM student");
+
     stmt30 = conn.prepareStatement("SELECT max(uid) + 1 FROM university");
     stmt31 = conn.prepareStatement("INSERT INTO university VALUES (?, ?, ?, ?, ?, 0)");
+
+    stmt40 = conn.prepareStatement("DELETE FROM university WHERE uid = ?");
+    stmt41 = conn.prepareStatement("DELETE FROM apply WHERE uid = ?");
+
     stmt50 = conn.prepareStatement("SELECT max(sid) + 1 FROM student");
     stmt51 = conn.prepareStatement("INSERT INTO student VALUES (?, ?, ?, ?)");
+
+    stmt60 = conn.prepareStatement("DELETE FROM student WHERE sid = ?");
+    stmt61 = conn.prepareStatement("DELETE FROM apply WHERE sid = ?");
+    stmt62 = conn.prepareStatement("UPDATE university SET applied = applied - 1 WHERE uid in (SELECT uid FROM apply WHERE sid = ?)");
+
     stmt70 = conn.prepareStatement("SELECT ugroup FROM university WHERE uid = ?");
     stmt71 = conn.prepareStatement("SELECT count(*) FROM student WHERE sid = ?");
     stmt72 = conn.prepareStatement("SELECT ugroup FROM university WHERE uid in (SELECT uid FROM apply WHERE sid = ?)");
@@ -103,8 +121,7 @@ public class SimpleDBApp {
     System.out.println(LINE_UNIV);
     ResultSet rs = stmt10.executeQuery();
     while (rs.next())
-      System.out.println(String.format(FMT_UNIV, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
-          String.format("%.2f", rs.getFloat(5)), rs.getString(6)));
+      System.out.println(String.format(FMT_UNIV, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), String.format("%.2f", rs.getFloat(5)), rs.getString(6)));
     System.out.println(LINE_UNIV);
   }
 
@@ -161,6 +178,29 @@ public class SimpleDBApp {
     System.out.println("A university is successfully inserted.");
   }
 
+  private static void removeUniv() throws SQLException {
+    System.out.print("University ID: ");
+    int uid = Integer.parseInt(in.nextLine());
+    try {
+      conn.setAutoCommit(false);
+      stmt40.setInt(1, uid);
+      stmt40.executeUpdate();
+      stmt41.setInt(1, uid);
+      stmt41.executeUpdate();
+      conn.commit();
+      System.out.println("A university is successfully deleted.");
+    } catch (SQLException e) {
+      e.printStackTrace();
+      try {
+        conn.rollback();
+      } catch (SQLException ex) {
+        ex.printStackTrace();
+      }
+    } finally {
+      conn.setAutoCommit(true);
+    }
+  }
+
   private static void insertStud() throws SQLException {
     System.out.print("Student name: ");
     String name = in.nextLine();
@@ -194,6 +234,31 @@ public class SimpleDBApp {
     stmt51.setInt(4, school_score);
     stmt51.executeUpdate();
     System.out.println("A student is successfully inserted.");
+  }
+
+  private static void removeStud() throws SQLException {
+    System.out.print("Student ID: ");
+    int sid = Integer.parseInt(in.nextLine());
+    try {
+      conn.setAutoCommit(false);
+      stmt62.setInt(1, sid);
+      stmt62.executeUpdate();
+      stmt60.setInt(1, sid);
+      stmt60.executeUpdate();
+      stmt61.setInt(1, sid);
+      stmt61.executeUpdate();
+      conn.commit();
+      System.out.println("A student is successfully deleted.");
+    } catch (SQLException e) {
+      e.printStackTrace();
+      try {
+        conn.rollback();
+      } catch (SQLException ex) {
+        ex.printStackTrace();
+      }
+    } finally {
+      conn.setAutoCommit(true);
+    }
   }
 
   private static void apply() throws SQLException {
