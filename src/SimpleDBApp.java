@@ -13,11 +13,15 @@ public class SimpleDBApp {
   private static final String LINE_MENU = "============================================================";
   private static final String LINE_UNIV = "________________________________________________________";
   private static final String FMT_UNIV = "%-3.3s %-22.22s %-8.8s %-5.5s %-6.6s %-7.7s";
+  private static final String LINE_STUD = "--------------------------------------------------------";
+  private static final String FMT_STUD = "%-9.9s %-22.22s %-10.10s %-12.12s";
 
   private static Connection conn;
   private static Scanner in;
   private static PreparedStatement stmt10;
+  private static PreparedStatement stmt20;
   private static PreparedStatement stmt30, stmt31;
+  private static PreparedStatement stmt50, stmt51;
 
   public static void main(String[] args) {
     try {
@@ -25,10 +29,10 @@ public class SimpleDBApp {
       while (true) {
         switch (getAction()) {
           case 1: printUniv(); break;
-          case 2:
+          case 2: printStud(); break;
           case 3: insertUniv(); break;
           case 4:
-          case 5:
+          case 5: insertStud(); break;
           case 6:
           case 7:
           case 8:
@@ -49,8 +53,11 @@ public class SimpleDBApp {
     conn = DriverManager.getConnection(DB_URL, DB_ID, DB_PASSWORD);
     in = new Scanner(System.in);
     stmt10 = conn.prepareStatement("SELECT * FROM university");
+    stmt20 = conn.prepareStatement("SELECT * FROM student");
     stmt30 = conn.prepareStatement("SELECT max(uid) + 1 FROM university");
     stmt31 = conn.prepareStatement("INSERT INTO university VALUES (?, ?, ?, ?, ?, 0)");
+    stmt50 = conn.prepareStatement("SELECT max(sid) + 1 FROM student");
+    stmt51 = conn.prepareStatement("INSERT INTO student VALUES (?, ?, ?, ?)");
   }
 
   private static int getAction() {
@@ -80,6 +87,16 @@ public class SimpleDBApp {
     while (rs.next())
       System.out.println(String.format(FMT_UNIV, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6)));
     System.out.println(LINE_UNIV);
+  }
+
+  private static void printStud() throws SQLException {
+    System.out.println(LINE_STUD);
+    System.out.println(String.format(FMT_STUD, "id", "name", "csat_score", "school_score"));
+    System.out.println(LINE_STUD);
+    ResultSet rs = stmt20.executeQuery();
+    while (rs.next())
+      System.out.println(String.format(FMT_STUD, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)));
+    System.out.println(LINE_STUD);
   }
 
   private static void insertUniv() throws SQLException{
@@ -122,6 +139,40 @@ public class SimpleDBApp {
     stmt31.setFloat(5, weight);
     stmt31.executeUpdate();
     System.out.println("A university is successfully inserted.");
+  }
+
+  private static void insertStud() throws SQLException {
+    System.out.print("Student name: ");
+    String name = in.nextLine();
+    if (name.length() > 20) {
+      name = name.substring(0, 20);
+    }
+
+    System.out.print("CSAT score: ");
+    int csat_score = Integer.parseInt(in.nextLine());
+    if (csat_score < 0 || csat_score > 400) {
+      System.out.println("CSAT score should be between 0 and 400.");
+      return;
+    }
+
+    System.out.print("High school record score: ");
+    int school_score = Integer.parseInt(in.nextLine());
+    if (school_score < 0 || school_score > 100) {
+      System.out.println("High school records score should be between 0 and 100.");
+      return;
+    }
+
+    ResultSet rs = stmt50.executeQuery();
+    rs.next();
+    int sid = rs.getInt(1);
+    if (sid == 0) sid = 1;
+
+    stmt51.setInt(1, sid);
+    stmt51.setString(2, name);
+    stmt51.setInt(3, csat_score);
+    stmt51.setInt(4, school_score);
+    stmt51.executeUpdate();
+    System.out.println("A student is successfully inserted.");
   }
 
   private static void exit() throws SQLException {
