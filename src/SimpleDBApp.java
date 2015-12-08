@@ -25,6 +25,8 @@ public class SimpleDBApp {
   private static PreparedStatement stmt50, stmt51;
   private static PreparedStatement stmt60, stmt61, stmt62;
   private static PreparedStatement stmt70, stmt71, stmt72, stmt73, stmt74;
+  private static PreparedStatement stmt80;
+  private static PreparedStatement stmt90;
 
   public static void main(String[] args) {
     try {
@@ -32,10 +34,10 @@ public class SimpleDBApp {
       while (true) {
         switch (getAction()) {
           case 1:
-            printUniv();
+            printAllUniv();
             break;
           case 2:
-            printStud();
+            printAllStud();
             break;
           case 3:
             insertUniv();
@@ -53,7 +55,11 @@ public class SimpleDBApp {
             apply();
             break;
           case 8:
+            printStudByUniv();
+            break;
           case 9:
+            printUnivByStud();
+            break;
           case 10:
           case 11:
           case 12:
@@ -94,6 +100,10 @@ public class SimpleDBApp {
     stmt72 = conn.prepareStatement("SELECT ugroup FROM university WHERE uid in (SELECT uid FROM apply WHERE sid = ?)");
     stmt73 = conn.prepareStatement("INSERT INTO apply VALUES (?, ?)");
     stmt74 = conn.prepareStatement("UPDATE university SET applied = applied + 1 WHERE uid = ?");
+
+    stmt80 = conn.prepareStatement("SELECT * FROM student WHERE sid in (SELECT sid FROM apply WHERE uid = ?)");
+
+    stmt90 = conn.prepareStatement("SELECT * FROM university WHERE uid in (SELECT uid FROM apply WHERE sid = ?)");
   }
 
   private static int getAction() {
@@ -115,24 +125,30 @@ public class SimpleDBApp {
     return Integer.parseInt(in.nextLine());
   }
 
-  private static void printUniv() throws SQLException {
+  private static void printUniv(ResultSet rs) throws SQLException {
     System.out.println(LINE_UNIV);
     System.out.println(String.format(FMT_UNIV, "id", "name", "capacity", "group", "weight", "applied"));
     System.out.println(LINE_UNIV);
-    ResultSet rs = stmt10.executeQuery();
     while (rs.next())
-      System.out.println(String.format(FMT_UNIV, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), String.format("%.2f", rs.getFloat(5)), rs.getString(6)));
+      System.out.println(String.format(FMT_UNIV, rs.getInt(1), rs.getString(2), rs.getInt(3), rs.getString(4), String.format("%.2f", rs.getFloat(5)), rs.getInt(6)));
     System.out.println(LINE_UNIV);
   }
 
-  private static void printStud() throws SQLException {
+  private static void printStud(ResultSet rs) throws SQLException {
     System.out.println(LINE_STUD);
     System.out.println(String.format(FMT_STUD, "id", "name", "csat_score", "school_score"));
     System.out.println(LINE_STUD);
-    ResultSet rs = stmt20.executeQuery();
     while (rs.next())
-      System.out.println(String.format(FMT_STUD, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)));
+      System.out.println(String.format(FMT_STUD, rs.getInt(1), rs.getString(2), rs.getInt(3), rs.getInt(4)));
     System.out.println(LINE_STUD);
+  }
+
+  private static void printAllUniv() throws SQLException {
+    printUniv(stmt10.executeQuery());
+  }
+
+  private static void printAllStud() throws SQLException {
+    printStud(stmt20.executeQuery());
   }
 
   private static void insertUniv() throws SQLException {
@@ -317,6 +333,20 @@ public class SimpleDBApp {
     } finally {
       conn.setAutoCommit(true);
     }
+  }
+
+  private static void printStudByUniv() throws SQLException {
+    System.out.print("University ID: ");
+    int uid = Integer.parseInt(in.nextLine());
+    stmt80.setInt(1, uid);
+    printStud(stmt80.executeQuery());
+  }
+
+  private static void printUnivByStud() throws SQLException {
+    System.out.print("Student ID: ");
+    int sid = Integer.parseInt(in.nextLine());
+    stmt90.setInt(1, sid);
+    printUniv(stmt90.executeQuery());
   }
 
   private static void exit() throws SQLException {
