@@ -18,13 +18,14 @@ public class SimpleDBApp {
 
   private static Connection conn;
   private static Scanner in;
+  private static PreparedStatement stmt00, stmt01;
   private static PreparedStatement stmt10;
   private static PreparedStatement stmt20;
   private static PreparedStatement stmt30, stmt31;
   private static PreparedStatement stmt40, stmt41;
   private static PreparedStatement stmt50, stmt51;
   private static PreparedStatement stmt60, stmt61, stmt62;
-  private static PreparedStatement stmt70, stmt71, stmt72, stmt73, stmt74;
+  private static PreparedStatement stmt70, stmt72, stmt73, stmt74;
   private static PreparedStatement stmt80;
   private static PreparedStatement stmt90;
 
@@ -78,6 +79,9 @@ public class SimpleDBApp {
     conn = DriverManager.getConnection(DB_URL, DB_ID, DB_PASSWORD);
     in = new Scanner(System.in);
 
+    stmt00 = conn.prepareStatement("SELECT count(*) FROM university WHERE uid = ?");
+    stmt01 = conn.prepareStatement("SELECT count(*) FROM student WHERE sid = ?");
+
     stmt10 = conn.prepareStatement("SELECT * FROM university");
 
     stmt20 = conn.prepareStatement("SELECT * FROM student");
@@ -96,7 +100,6 @@ public class SimpleDBApp {
     stmt62 = conn.prepareStatement("UPDATE university SET applied = applied - 1 WHERE uid in (SELECT uid FROM apply WHERE sid = ?)");
 
     stmt70 = conn.prepareStatement("SELECT ugroup FROM university WHERE uid = ?");
-    stmt71 = conn.prepareStatement("SELECT count(*) FROM student WHERE sid = ?");
     stmt72 = conn.prepareStatement("SELECT ugroup FROM university WHERE uid in (SELECT uid FROM apply WHERE sid = ?)");
     stmt73 = conn.prepareStatement("INSERT INTO apply VALUES (?, ?)");
     stmt74 = conn.prepareStatement("UPDATE university SET applied = applied + 1 WHERE uid = ?");
@@ -123,6 +126,20 @@ public class SimpleDBApp {
     System.out.println(LINE_MENU);
     System.out.print("Select your action: ");
     return Integer.parseInt(in.nextLine());
+  }
+
+  private static boolean univExists(int uid) throws SQLException {
+    stmt00.setInt(1, uid);
+    ResultSet rs = stmt00.executeQuery();
+    rs.next();
+    return rs.getInt(1) != 0;
+  }
+
+  private static boolean studExists(int sid) throws SQLException {
+    stmt01.setInt(1, sid);
+    ResultSet rs = stmt01.executeQuery();
+    rs.next();
+    return rs.getInt(1) != 0;
   }
 
   private static void printUniv(ResultSet rs) throws SQLException {
@@ -197,17 +214,18 @@ public class SimpleDBApp {
   private static void removeUniv() throws SQLException {
     System.out.print("University ID: ");
     int uid = Integer.parseInt(in.nextLine());
+    if (!univExists(uid)) {
+      System.out.println(String.format("University %d doesn't exist.", uid));
+      return;
+    }
     try {
       conn.setAutoCommit(false);
       stmt40.setInt(1, uid);
-      if (stmt40.executeUpdate() == 0) {
-        System.out.println(String.format("University %d doesn't exist.", uid));
-      } else {
-        stmt41.setInt(1, uid);
-        stmt41.executeUpdate();
-        System.out.println("A university is successfully deleted.");
-      }
+      stmt40.executeUpdate();
+      stmt41.setInt(1, uid);
+      stmt41.executeUpdate();
       conn.commit();
+      System.out.println("A university is successfully deleted.");
     } catch (SQLException e) {
       e.printStackTrace();
       try {
@@ -258,19 +276,20 @@ public class SimpleDBApp {
   private static void removeStud() throws SQLException {
     System.out.print("Student ID: ");
     int sid = Integer.parseInt(in.nextLine());
+    if (!studExists(sid)) {
+      System.out.println(String.format("Student %d doesn't exist.", sid));
+      return;
+    }
     try {
       conn.setAutoCommit(false);
       stmt60.setInt(1, sid);
-      if (stmt60.executeUpdate() == 0) {
-        System.out.println(String.format("Student %d doesn't exist.", sid));
-      } else {
-        stmt62.setInt(1, sid);
-        stmt62.executeUpdate();
-        stmt61.setInt(1, sid);
-        stmt61.executeUpdate();
-        System.out.println("A student is successfully deleted.");
-      }
+      stmt60.executeUpdate();
+      stmt62.setInt(1, sid);
+      stmt62.executeUpdate();
+      stmt61.setInt(1, sid);
+      stmt61.executeUpdate();
       conn.commit();
+      System.out.println("A student is successfully deleted.");
     } catch (SQLException e) {
       e.printStackTrace();
       try {
@@ -288,10 +307,7 @@ public class SimpleDBApp {
 
     System.out.print("Student ID: ");
     int sid = Integer.parseInt(in.nextLine());
-    stmt71.setInt(1, sid);
-    rs = stmt71.executeQuery();
-    rs.next();
-    if (rs.getInt(1) == 0) {
+    if (!studExists(sid)) {
       System.out.println(String.format("Student %d doesn't exist.", sid));
       return;
     }
@@ -344,6 +360,10 @@ public class SimpleDBApp {
   private static void printStudByUniv() throws SQLException {
     System.out.print("University ID: ");
     int uid = Integer.parseInt(in.nextLine());
+    if (!univExists(uid)) {
+      System.out.println(String.format("University %d doesn't exist.", uid));
+      return;
+    }
     stmt80.setInt(1, uid);
     printStud(stmt80.executeQuery());
   }
@@ -351,6 +371,10 @@ public class SimpleDBApp {
   private static void printUnivByStud() throws SQLException {
     System.out.print("Student ID: ");
     int sid = Integer.parseInt(in.nextLine());
+    if (!studExists(sid)) {
+      System.out.println(String.format("Student %d doesn't exist.", sid));
+      return;
+    }
     stmt90.setInt(1, sid);
     printUniv(stmt90.executeQuery());
   }
