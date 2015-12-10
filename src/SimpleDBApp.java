@@ -31,6 +31,7 @@ public class SimpleDBApp {
   private static PreparedStatement stmt80;
   private static PreparedStatement stmt90;
   private static PreparedStatement stmt100, stmt101;
+  private static PreparedStatement stmt110;
 
   public static void main(String[] args) {
     try {
@@ -68,6 +69,8 @@ public class SimpleDBApp {
             printAcceptedStudByUniv();
             break;
           case 11:
+            printAcceptedUnivByStud();
+            break;
           case 12:
             exit();
             break;
@@ -115,6 +118,8 @@ public class SimpleDBApp {
 
     stmt100 = conn.prepareStatement("SELECT capacity, weight FROM university WHERE uid = ?");
     stmt101 = conn.prepareStatement("SELECT * FROM student WHERE sid IN (SELECT sid FROM apply WHERE uid = ?) ORDER BY csat_score + ? * school_score DESC, school_score DESC LIMIT ?");
+
+    stmt110 = conn.prepareStatement("SELECT * FROM university WHERE uid IN (SELECT uid FROM apply WHERE sid = ?)");
   }
 
   private static int getAction() {
@@ -157,12 +162,42 @@ public class SimpleDBApp {
     return l;
   }
 
-  private static void printUniv(ResultSet rs) throws SQLException {
+  private static List<University> univRs2List(ResultSet rs) throws SQLException {
+    List<University> l = new ArrayList<University>();
+    while (rs.next())
+      l.add(new University(rs.getInt(1), rs.getString(2), rs.getInt(3), rs.getString(4), rs.getFloat(5), rs.getInt(6)));
+    return l;
+  }
+
+  private static List<Student> getAcceptedStud(int uid) throws SQLException {
+    stmt100.setInt(1, uid);
+    ResultSet rs = stmt100.executeQuery();
+    rs.next();
+    int capacity = rs.getInt(1);
+    int cap110 = (int) Math.ceil(capacity * 1.1);
+    float weight = rs.getFloat(2);
+
+    stmt101.setInt(1, uid);
+    stmt101.setFloat(2, weight);
+    stmt101.setInt(3, cap110 + 1);
+    List<Student> l = studRs2List(stmt101.executeQuery());
+    if (l.size() > capacity) {
+      int i;
+      for (i = capacity; i < l.size() && l.get(i).hasSameScore(l.get(i - 1)); ++i);
+      for (; i < l.size(); l.remove(i));
+      if (i == cap110 + 1)
+        for (Student s = l.get(--i); i >= 0 && l.get(i).hasSameScore(s); l.remove(i--));
+    }
+
+    return l;
+  }
+
+  private static void printUniv(List<University> l) throws SQLException {
     System.out.println(LINE_UNIV);
     System.out.println(String.format(FMT_UNIV, "id", "name", "capacity", "group", "weight", "applied"));
     System.out.println(LINE_UNIV);
-    while (rs.next())
-      System.out.println(String.format(FMT_UNIV, rs.getInt(1), rs.getString(2), rs.getInt(3), rs.getString(4), String.format("%.2f", rs.getFloat(5)), rs.getInt(6)));
+    for (University u : l)
+      System.out.println(String.format(FMT_UNIV, u.getUid(), u.getName(), u.getCapacity(), u.getUgroup(), String.format("%.2f", u.getWeight()), u.getApplied()));
     System.out.println(LINE_UNIV);
   }
 
@@ -176,7 +211,7 @@ public class SimpleDBApp {
   }
 
   private static void printAllUniv() throws SQLException {
-    printUniv(stmt10.executeQuery());
+    printUniv(univRs2List(stmt10.executeQuery()));
   }
 
   private static void printAllStud() throws SQLException {
@@ -391,7 +426,7 @@ public class SimpleDBApp {
       return;
     }
     stmt90.setInt(1, sid);
-    printUniv(stmt90.executeQuery());
+    printUniv(univRs2List(stmt90.executeQuery()));
   }
 
   private static void printAcceptedStudByUniv() throws SQLException {
@@ -402,25 +437,35 @@ public class SimpleDBApp {
       return;
     }
 
-    stmt100.setInt(1, uid);
-    ResultSet rs = stmt100.executeQuery();
-    rs.next();
-    int capacity = rs.getInt(1);
-    int cap110 = (int) Math.ceil(capacity * 1.1);
-    float weight = rs.getFloat(2);
+    printStud(getAcceptedStud(uid));
+  }
 
-    stmt101.setInt(1, uid);
-    stmt101.setFloat(2, weight);
-    stmt101.setInt(3, cap110 + 1);
-    List<Student> l = studRs2List(stmt101.executeQuery());
-    if (l.size() > capacity) {
-      int i;
-      for (i = capacity; i < l.size() && l.get(i).hasSameScore(l.get(i - 1)); ++i);
-      for (; i < l.size(); l.remove(i));
-      if (i == cap110 + 1)
-        for (Student s = l.get(--i); i >= 0 && l.get(i).hasSameScore(s); l.remove(i--));
+  private static void printAcceptedUnivByStud() throws SQLException {
+    System.out.print("Student ID: ");
+    int sid = Integer.parseInt(in.nextLine());
+    if (!studExists(sid)) {
+      System.out.println(String.format("Student %d doesn't exist.", sid));
+      return;
     }
-    printStud(l);
+
+    List<University> ul = new ArrayList<University>();
+    stmt110.setInt(1, sid);
+    ResultSet rs = stmt110.executeQuery();
+    while (rs.next()) {
+      int uid = rs.getInt(1);
+      List<Student> l = getAcceptedStud(uid);
+      boolean flag = false;
+      for (Student s : l) {
+        if (s.getSid() == sid) {
+          flag = true;
+          break;
+        }
+      }
+      if (flag) {
+        ul.add(new University(rs.getInt(1), rs.getString(2), rs.getInt(3), rs.getString(4), rs.getFloat(5), rs.getInt(6)));
+      }
+    }
+    printUniv(ul);
   }
 
   private static void exit() throws SQLException {
