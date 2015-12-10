@@ -83,6 +83,11 @@ public class SimpleDBApp {
     }
   }
 
+  /**
+   * Make a db connection, a scanner for stdin, and precompiled statements.
+   * 
+   * @throws SQLException
+   */
   private static void init() throws SQLException {
     conn = DriverManager.getConnection(DB_URL, DB_ID, DB_PASSWORD);
     in = new Scanner(System.in);
@@ -122,6 +127,11 @@ public class SimpleDBApp {
     stmt110 = conn.prepareStatement("SELECT * FROM university WHERE uid IN (SELECT uid FROM apply WHERE sid = ?)");
   }
 
+  /**
+   * Print a menu and get user's input for menu choice.
+   * 
+   * @return menu number chosen by user
+   */
   private static int getAction() {
     System.out.println(LINE_MENU);
     System.out.println("1. print all universities");
@@ -141,6 +151,14 @@ public class SimpleDBApp {
     return Integer.parseInt(in.nextLine());
   }
 
+  /**
+   * Check if a university of given uid exists.
+   * 
+   * @param uid
+   *          university id
+   * @return true if a university exists, false otherwise
+   * @throws SQLException
+   */
   private static boolean univExists(int uid) throws SQLException {
     stmt00.setInt(1, uid);
     ResultSet rs = stmt00.executeQuery();
@@ -148,6 +166,14 @@ public class SimpleDBApp {
     return rs.getInt(1) != 0;
   }
 
+  /**
+   * Check if a student of given sid exists.
+   * 
+   * @param sid
+   *          student id
+   * @return true if a student exists, false otherwise
+   * @throws SQLException
+   */
   private static boolean studExists(int sid) throws SQLException {
     stmt01.setInt(1, sid);
     ResultSet rs = stmt01.executeQuery();
@@ -155,6 +181,14 @@ public class SimpleDBApp {
     return rs.getInt(1) != 0;
   }
 
+  /**
+   * Convert rows of ResultSet into student list.
+   * 
+   * @param rs
+   *          ResultSet from query on student table
+   * @return student list
+   * @throws SQLException
+   */
   private static List<Student> studRs2List(ResultSet rs) throws SQLException {
     List<Student> l = new ArrayList<Student>();
     while (rs.next())
@@ -162,6 +196,14 @@ public class SimpleDBApp {
     return l;
   }
 
+  /**
+   * Convert rows of ResultSet into university list.
+   * 
+   * @param rs
+   *          ResultSet from query on university table
+   * @return university list
+   * @throws SQLException
+   */
   private static List<University> univRs2List(ResultSet rs) throws SQLException {
     List<University> l = new ArrayList<University>();
     while (rs.next())
@@ -169,6 +211,17 @@ public class SimpleDBApp {
     return l;
   }
 
+  /**
+   * Return a list of student expected to be accepted by a university of given
+   * uid. Priorities are csat_score + weight * school_score, and school_score
+   * for tie breaking. If a capacity is exceeded due to tie, all students of tie
+   * fail if 110% of capacity is exceeded. Otherwise, they are accepted.
+   * 
+   * @param uid
+   *          university id
+   * @return student list described
+   * @throws SQLException
+   */
   private static List<Student> getAcceptedStud(int uid) throws SQLException {
     stmt100.setInt(1, uid);
     ResultSet rs = stmt100.executeQuery();
@@ -177,14 +230,19 @@ public class SimpleDBApp {
     int cap110 = (int) Math.ceil(capacity * 1.1);
     float weight = rs.getFloat(2);
 
+    // query (110% of capacity + 1) students
     stmt101.setInt(1, uid);
     stmt101.setFloat(2, weight);
     stmt101.setInt(3, cap110 + 1);
     List<Student> l = studRs2List(stmt101.executeQuery());
     if (l.size() > capacity) {
       int i;
+      // check ties on capacity boundary
       for (i = capacity; i < l.size() && l.get(i).hasSameScore(l.get(i - 1)); ++i);
+      // now i points past-the-end of ties
+      // remove students after ties
       for (; i < l.size(); l.remove(i));
+      // if ties exceed 110% of capacity, remove all ties
       if (i == cap110 + 1)
         for (Student s = l.get(--i); i >= 0 && l.get(i).hasSameScore(s); l.remove(i--));
     }
@@ -192,6 +250,13 @@ public class SimpleDBApp {
     return l;
   }
 
+  /**
+   * Print universities in tabular format.
+   * 
+   * @param l
+   *          university list
+   * @throws SQLException
+   */
   private static void printUniv(List<University> l) throws SQLException {
     System.out.println(LINE_UNIV);
     System.out.println(String.format(FMT_UNIV, "id", "name", "capacity", "group", "weight", "applied"));
@@ -201,6 +266,13 @@ public class SimpleDBApp {
     System.out.println(LINE_UNIV);
   }
 
+  /**
+   * Print students in tabular format.
+   * 
+   * @param l
+   *          student list
+   * @throws SQLException
+   */
   private static void printStud(List<Student> l) throws SQLException {
     System.out.println(LINE_STUD);
     System.out.println(String.format(FMT_STUD, "id", "name", "csat_score", "school_score"));
@@ -210,14 +282,29 @@ public class SimpleDBApp {
     System.out.println(LINE_STUD);
   }
 
+  /**
+   * Menu 1
+   * 
+   * @throws SQLException
+   */
   private static void printAllUniv() throws SQLException {
     printUniv(univRs2List(stmt10.executeQuery()));
   }
 
+  /**
+   * Menu 2
+   * 
+   * @throws SQLException
+   */
   private static void printAllStud() throws SQLException {
     printStud(studRs2List(stmt20.executeQuery()));
   }
 
+  /**
+   * Menu 3
+   * 
+   * @throws SQLException
+   */
   private static void insertUniv() throws SQLException {
     System.out.print("University name: ");
     String name = in.nextLine();
@@ -261,6 +348,11 @@ public class SimpleDBApp {
     System.out.println("A university is successfully inserted.");
   }
 
+  /**
+   * Menu 4
+   * 
+   * @throws SQLException
+   */
   private static void removeUniv() throws SQLException {
     System.out.print("University ID: ");
     int uid = Integer.parseInt(in.nextLine());
@@ -288,6 +380,11 @@ public class SimpleDBApp {
     }
   }
 
+  /**
+   * Menu 5
+   * 
+   * @throws SQLException
+   */
   private static void insertStud() throws SQLException {
     System.out.print("Student name: ");
     String name = in.nextLine();
@@ -323,6 +420,11 @@ public class SimpleDBApp {
     System.out.println("A student is successfully inserted.");
   }
 
+  /**
+   * Menu 6
+   * 
+   * @throws SQLException
+   */
   private static void removeStud() throws SQLException {
     System.out.print("Student ID: ");
     int sid = Integer.parseInt(in.nextLine());
@@ -352,6 +454,11 @@ public class SimpleDBApp {
     }
   }
 
+  /**
+   * Menu 7
+   * 
+   * @throws SQLException
+   */
   private static void apply() throws SQLException {
     ResultSet rs;
 
@@ -407,6 +514,11 @@ public class SimpleDBApp {
     }
   }
 
+  /**
+   * Menu 8
+   * 
+   * @throws SQLException
+   */
   private static void printStudByUniv() throws SQLException {
     System.out.print("University ID: ");
     int uid = Integer.parseInt(in.nextLine());
@@ -418,6 +530,11 @@ public class SimpleDBApp {
     printStud(studRs2List(stmt80.executeQuery()));
   }
 
+  /**
+   * Menu 9
+   * 
+   * @throws SQLException
+   */
   private static void printUnivByStud() throws SQLException {
     System.out.print("Student ID: ");
     int sid = Integer.parseInt(in.nextLine());
@@ -429,6 +546,11 @@ public class SimpleDBApp {
     printUniv(univRs2List(stmt90.executeQuery()));
   }
 
+  /**
+   * Menu 10
+   * 
+   * @throws SQLException
+   */
   private static void printAcceptedStudByUniv() throws SQLException {
     System.out.print("University ID: ");
     int uid = Integer.parseInt(in.nextLine());
@@ -440,6 +562,11 @@ public class SimpleDBApp {
     printStud(getAcceptedStud(uid));
   }
 
+  /**
+   * Menu 11
+   * 
+   * @throws SQLException
+   */
   private static void printAcceptedUnivByStud() throws SQLException {
     System.out.print("Student ID: ");
     int sid = Integer.parseInt(in.nextLine());
@@ -468,6 +595,11 @@ public class SimpleDBApp {
     printUniv(ul);
   }
 
+  /**
+   * Menu 12
+   * 
+   * @throws SQLException
+   */
   private static void exit() throws SQLException {
     conn.close();
     System.out.println("Bye!");
